@@ -5,13 +5,13 @@ import numpy
 
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-RHOST = "192.168.100.156"   # Change your own
-RPORT = 6001        # Change your own
+LHOST = "192.168.100.156"   # Change your own
+LPORT = 6001        # Change your own
 
-s.bind((RHOST, RPORT))
+s.bind((LHOST, LPORT))
 
 capture = cv2.VideoCapture(0)   # Change to your own webcam or video file
-def transmit(addr, data):
+def transmit(addr):
     while True:
         ret, photo = capture.read()
 
