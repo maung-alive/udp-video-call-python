@@ -6,7 +6,7 @@ import numpy
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 s.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 65535)
 
-RHOST = '192.168.100.156'
+RHOST = '127.0.0.1'
 RPORT = 6001
 
 capture = cv2.VideoCapture(0)
@@ -22,5 +22,5 @@ def receive():
             break
 
 if __name__ == '__main__':
-    s.connect((RHOST, RPORT))
+    s.sendto(b'CONNECTED', (RHOST, RPORT))
     receive()
