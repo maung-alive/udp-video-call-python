@@ -1,40 +1,48 @@
+import base64
 import socket
 import cv2
 import numpy
 import threading
-
-s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-s.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 10000000)
+from datetime import datetime
 
 RHOST = '127.0.0.1'
-RPORT = 6001
-width, height = 320, 240
+RPORT = 4444
+ADDRESS = (RHOST, RPORT)
 
-capture = cv2.VideoCapture(0)
-capture.set(3, width)
-capture.set(4, height)
+BUF_SIZE = 65535
+
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, BUF_SIZE)
+sock.sendto(b"Hello", ADDRESS)
+
+WIDTH = 400
+
+capture = cv2.VideoCapture(0)    # Change your camera
+def transmit(addr):
+    print(f"Transmitting to {addr[0]}:{addr[1]}")
+    while True:
+        _, captured = capture.read()
+        frame = cv2.resize(captured, (WIDTH, WIDTH))
+        frame = cv2.flip(frame, 1)
+        frame = cv2.putText(frame, str(datetime.now()), (15, 15), cv2.FONT_HERSHEY_PLAIN, 1, (0,0,255), 2)
+        encoded, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+        encoded_frame = base64.b64encode(buffer)
+        sock.sendto(encoded_frame, addr)
 
 def receive():
     while True:
-        (data, addr) = s.recvfrom(65507)
-        data = cv2.imdecode(numpy.frombuffer(data, dtype=numpy.uint8), 1)
+        data, addr = sock.recvfrom(BUF_SIZE)
+        data = base64.b64decode(data)
+        npdata = numpy.frombuffer(data, dtype=numpy.uint8)
+        frame = cv2.imdecode(npdata, cv2.IMREAD_COLOR)
+        cv2.imshow("Client", frame)
 
-        cv2.imshow(f"SERVER: {RHOST}", data)
+        key = cv2.waitKey(1) & 0xFF
 
-        if cv2.waitKey(10) == 13:  # ENTER key to quit
+        if key == ord('q'):
             break
 
-def transmit(addr):
-    while True:
-        ret, photo = capture.read()
-        encoded_frame = cv2.imencode('.jpg', photo)[1].tobytes()
-        s.sendto(encoded_frame, addr)
-
-if __name__ == '__main__':
-    s.sendto(b'TESTING', (RHOST, RPORT))
-    print("CONNECTED TO SERVER")
-    addr = (RHOST, RPORT)
-    transmit_thread = threading.Thread(target=transmit, args=(addr,))  # Threading
-    receive_thread = threading.Thread(target=receive)  # Threading
-    transmit_thread.start()
-    receive_thread.start()
+t1 = threading.Thread(target=transmit, args=(ADDRESS,))
+t2 = threading.Thread(target=receive)
+t1.start()
+t2.start()
